@@ -1,0 +1,802 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>J.A.R.V.I.S — Just A Rather Very Intelligent System</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Share+Tech+Mono&family=Exo+2:wght@300;400;600&display=swap');
+
+  :root {
+    --cyan: #00d4ff;
+    --cyan-dim: #0099bb;
+    --cyan-glow: rgba(0,212,255,0.3);
+    --cyan-trace: rgba(0,212,255,0.08);
+    --gold: #ffaa00;
+    --gold-glow: rgba(255,170,0,0.4);
+    --red: #ff3333;
+    --bg: #010812;
+    --panel: rgba(0,20,40,0.85);
+    --border: rgba(0,212,255,0.2);
+    --text: #c8f0ff;
+    --text-dim: rgba(200,240,255,0.5);
+  }
+
+  * { margin:0; padding:0; box-sizing:border-box; }
+
+  html, body {
+    width:100%; height:100%;
+    background: var(--bg);
+    font-family: 'Share Tech Mono', monospace;
+    color: var(--text);
+    overflow: hidden;
+  }
+
+  /* ── CANVAS BACKGROUND ── */
+  #bg-canvas {
+    position:fixed; inset:0; z-index:0;
+    pointer-events:none;
+  }
+
+  /* ── HUD WRAPPER ── */
+  .hud {
+    position:relative; z-index:1;
+    width:100vw; height:100vh;
+    display:flex; flex-direction:column;
+    padding: 14px 20px 12px;
+    gap: 10px;
+  }
+
+  /* ── TOP BAR ── */
+  .top-bar {
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom: 1px solid var(--border);
+    padding-bottom: 10px;
+  }
+  .logo {
+    font-family: 'Orbitron', sans-serif;
+    font-weight: 900;
+    font-size: 1.5rem;
+    letter-spacing: 0.15em;
+    color: var(--cyan);
+    text-shadow: 0 0 20px var(--cyan), 0 0 40px var(--cyan-glow);
+    animation: pulse-logo 3s ease-in-out infinite;
+  }
+  @keyframes pulse-logo {
+    0%,100%{ text-shadow: 0 0 20px var(--cyan), 0 0 40px var(--cyan-glow); }
+    50%{ text-shadow: 0 0 30px var(--cyan), 0 0 60px rgba(0,212,255,0.6), 0 0 80px var(--cyan-glow); }
+  }
+  .logo span { color: var(--gold); text-shadow: 0 0 12px var(--gold); }
+
+  .top-metrics { display:flex; gap:24px; }
+  .metric {
+    display:flex; flex-direction:column; align-items:center;
+    font-size:0.62rem; letter-spacing:0.1em; color: var(--text-dim);
+  }
+  .metric-val {
+    font-family:'Orbitron',sans-serif; font-size:0.85rem;
+    color: var(--cyan); font-weight:700;
+  }
+  .metric-val.gold { color: var(--gold); }
+
+  .status-dot {
+    display:flex; align-items:center; gap:6px;
+    font-size:0.65rem; letter-spacing:0.12em; color: #00ff88;
+  }
+  .dot {
+    width:7px; height:7px; border-radius:50%; background:#00ff88;
+    box-shadow: 0 0 8px #00ff88;
+    animation: blink 2s ease-in-out infinite;
+  }
+  @keyframes blink { 0%,100%{opacity:1;} 50%{opacity:0.4;} }
+
+  /* ── MAIN LAYOUT ── */
+  .main {
+    flex:1; display:grid;
+    grid-template-columns: 220px 1fr 200px;
+    gap:10px; min-height:0;
+  }
+
+  /* ── SIDE PANELS ── */
+  .side-panel {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    padding: 12px;
+    display:flex; flex-direction:column; gap:10px;
+    backdrop-filter: blur(12px);
+    position:relative; overflow:hidden;
+  }
+  .side-panel::before {
+    content:''; position:absolute; top:0; left:0; right:0; height:2px;
+    background: linear-gradient(90deg, transparent, var(--cyan), transparent);
+    animation: scan-line 3s ease-in-out infinite;
+  }
+  @keyframes scan-line {
+    0%,100%{opacity:0.3;} 50%{opacity:1;}
+  }
+
+  .panel-title {
+    font-family:'Orbitron',sans-serif; font-size:0.6rem;
+    letter-spacing:0.2em; color: var(--gold);
+    text-transform:uppercase; padding-bottom:6px;
+    border-bottom: 1px solid var(--border);
+  }
+
+  /* ── ARC REACTOR ── */
+  .arc-reactor {
+    display:flex; justify-content:center; padding:8px 0;
+  }
+  .arc-outer {
+    width:90px; height:90px; border-radius:50%;
+    border: 2px solid var(--cyan);
+    box-shadow: 0 0 20px var(--cyan-glow), inset 0 0 20px var(--cyan-trace);
+    display:flex; align-items:center; justify-content:center;
+    position:relative; animation: arc-spin 8s linear infinite;
+  }
+  @keyframes arc-spin {
+    from{box-shadow: 0 0 20px var(--cyan-glow), inset 0 0 20px var(--cyan-trace);}
+    50%{box-shadow: 0 0 35px rgba(0,212,255,0.5), inset 0 0 30px rgba(0,212,255,0.15);}
+    to{box-shadow: 0 0 20px var(--cyan-glow), inset 0 0 20px var(--cyan-trace);}
+  }
+  .arc-mid {
+    width:65px; height:65px; border-radius:50%;
+    border: 1px solid rgba(0,212,255,0.5);
+    display:flex; align-items:center; justify-content:center;
+    animation: arc-counter 5s linear infinite;
+  }
+  @keyframes arc-counter { from{transform:rotate(0deg);} to{transform:rotate(-360deg);} }
+  .arc-inner {
+    width:40px; height:40px; border-radius:50%;
+    background: radial-gradient(circle, rgba(0,212,255,0.8) 0%, rgba(0,100,200,0.4) 50%, transparent 70%);
+    box-shadow: 0 0 15px var(--cyan), 0 0 30px var(--cyan-glow);
+    animation: arc-pulse 2s ease-in-out infinite;
+  }
+  @keyframes arc-pulse {
+    0%,100%{transform:scale(1); opacity:0.9;}
+    50%{transform:scale(1.12); opacity:1;}
+  }
+  .arc-spoke {
+    position:absolute; width:2px; height:35px; background:rgba(0,212,255,0.3);
+    top:50%; left:50%; transform-origin: center bottom;
+  }
+  .arc-spoke:nth-child(1){transform:translate(-50%,-100%) rotate(0deg);}
+  .arc-spoke:nth-child(2){transform:translate(-50%,-100%) rotate(60deg);}
+  .arc-spoke:nth-child(3){transform:translate(-50%,-100%) rotate(120deg);}
+  .arc-spoke:nth-child(4){transform:translate(-50%,-100%) rotate(180deg);}
+  .arc-spoke:nth-child(5){transform:translate(-50%,-100%) rotate(240deg);}
+  .arc-spoke:nth-child(6){transform:translate(-50%,-100%) rotate(300deg);}
+
+  /* ── PROGRESS BARS ── */
+  .stat-row { display:flex; flex-direction:column; gap:3px; }
+  .stat-label { font-size:0.58rem; letter-spacing:0.1em; color: var(--text-dim); display:flex; justify-content:space-between; }
+  .stat-label span { color: var(--cyan); }
+  .bar-track {
+    height:4px; background:rgba(0,212,255,0.1); border-radius:2px; overflow:hidden;
+    border: 1px solid rgba(0,212,255,0.15);
+  }
+  .bar-fill {
+    height:100%; border-radius:2px;
+    background: linear-gradient(90deg, var(--cyan-dim), var(--cyan));
+    box-shadow: 0 0 6px var(--cyan-glow);
+    transition: width 1s ease;
+  }
+  .bar-fill.gold-bar { background: linear-gradient(90deg, #cc7700, var(--gold)); box-shadow: 0 0 6px var(--gold-glow); }
+  .bar-fill.green-bar { background: linear-gradient(90deg, #00aa55, #00ff88); box-shadow: 0 0 6px rgba(0,255,136,0.4); }
+
+  /* ── THREAT LEVEL ── */
+  .threat-indicator { display:flex; gap:4px; justify-content:center; flex-wrap:wrap; }
+  .threat-box {
+    width:16px; height:10px; border-radius:2px;
+    border: 1px solid rgba(0,212,255,0.2); background:rgba(0,212,255,0.05);
+    transition: all 0.3s;
+  }
+  .threat-box.active { background:var(--cyan); box-shadow: 0 0 4px var(--cyan); border-color:var(--cyan); }
+  .threat-box.active.warn { background:var(--gold); box-shadow: 0 0 4px var(--gold); border-color:var(--gold); }
+  .threat-box.active.danger { background:var(--red); box-shadow: 0 0 4px var(--red); border-color:var(--red); }
+
+  /* ── CHAT CENTER ── */
+  .chat-center {
+    display:flex; flex-direction:column; gap:8px;
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius:6px;
+    padding:14px;
+    backdrop-filter: blur(12px);
+    position:relative; overflow:hidden;
+  }
+  .chat-center::after {
+    content:''; position:absolute; bottom:0; left:0; right:0; height:2px;
+    background: linear-gradient(90deg, transparent, var(--gold), transparent);
+    animation: scan-line 4s ease-in-out infinite;
+  }
+
+  .chat-header {
+    display:flex; align-items:center; justify-content:space-between;
+    border-bottom: 1px solid var(--border); padding-bottom:8px;
+  }
+  .chat-title {
+    font-family:'Orbitron',sans-serif; font-size:0.65rem;
+    letter-spacing:0.18em; color: var(--cyan);
+  }
+  .chat-tag {
+    font-size:0.55rem; letter-spacing:0.15em;
+    color: var(--text-dim); padding: 2px 8px;
+    border: 1px solid var(--border); border-radius:2px;
+  }
+
+  /* ── MESSAGES ── */
+  .messages {
+    flex:1; overflow-y:auto; display:flex; flex-direction:column;
+    gap:10px; padding-right:4px; min-height:0;
+  }
+  .messages::-webkit-scrollbar { width:3px; }
+  .messages::-webkit-scrollbar-track { background:transparent; }
+  .messages::-webkit-scrollbar-thumb { background:var(--border); border-radius:2px; }
+
+  .msg {
+    display:flex; gap:10px; align-items:flex-start;
+    animation: msg-in 0.4s ease forwards;
+    opacity:0; transform:translateY(8px);
+  }
+  @keyframes msg-in { to { opacity:1; transform:translateY(0); } }
+
+  .msg.user { flex-direction:row-reverse; }
+
+  .msg-avatar {
+    width:28px; height:28px; border-radius:50%;
+    border: 1px solid var(--border);
+    display:flex; align-items:center; justify-content:center;
+    font-size:0.55rem; font-family:'Orbitron',sans-serif;
+    flex-shrink:0; color:var(--cyan); background:rgba(0,50,80,0.5);
+    box-shadow: 0 0 8px var(--cyan-glow);
+  }
+  .msg.user .msg-avatar { color:var(--gold); border-color:var(--gold); box-shadow: 0 0 8px var(--gold-glow); }
+
+  .msg-bubble {
+    max-width:75%; padding: 8px 12px;
+    border-radius:4px; font-size:0.72rem; line-height:1.6;
+    letter-spacing:0.03em; position:relative;
+  }
+  .msg.jarvis .msg-bubble {
+    background:rgba(0,212,255,0.06);
+    border: 1px solid rgba(0,212,255,0.25);
+    color: var(--text);
+    border-left: 2px solid var(--cyan);
+  }
+  .msg.user .msg-bubble {
+    background:rgba(255,170,0,0.07);
+    border: 1px solid rgba(255,170,0,0.25);
+    color: var(--text);
+    border-right: 2px solid var(--gold);
+    text-align:right;
+  }
+
+  .msg-label {
+    font-size:0.52rem; letter-spacing:0.15em;
+    color: var(--text-dim); margin-bottom:3px;
+    font-family:'Orbitron',sans-serif;
+  }
+  .msg.user .msg-label { color: rgba(255,170,0,0.6); text-align:right; }
+
+  /* ── TYPING INDICATOR ── */
+  .typing-indicator { display:none; gap:4px; padding:8px 12px; align-items:center; }
+  .typing-indicator.active { display:flex; }
+  .typing-dot {
+    width:5px; height:5px; border-radius:50%; background:var(--cyan);
+    animation: tdot 1.2s ease-in-out infinite;
+  }
+  .typing-dot:nth-child(2){ animation-delay:0.2s; }
+  .typing-dot:nth-child(3){ animation-delay:0.4s; }
+  @keyframes tdot {
+    0%,80%,100%{transform:scale(0.6); opacity:0.4;}
+    40%{transform:scale(1); opacity:1; box-shadow:0 0 6px var(--cyan);}
+  }
+
+  /* ── INPUT AREA ── */
+  .input-area {
+    display:flex; gap:8px; align-items:center;
+    border-top: 1px solid var(--border); padding-top:10px;
+  }
+  .cmd-prefix {
+    font-family:'Orbitron',sans-serif; font-size:0.8rem;
+    color: var(--gold); flex-shrink:0;
+    text-shadow: 0 0 8px var(--gold);
+  }
+  #user-input {
+    flex:1; background:rgba(0,212,255,0.04);
+    border: 1px solid rgba(0,212,255,0.2);
+    border-radius:3px; padding: 8px 12px;
+    color: var(--text); font-family:'Share Tech Mono',monospace;
+    font-size:0.72rem; letter-spacing:0.05em; outline:none;
+    transition: border-color 0.2s, box-shadow 0.2s;
+    caret-color: var(--cyan);
+  }
+  #user-input:focus {
+    border-color: var(--cyan);
+    box-shadow: 0 0 12px var(--cyan-glow);
+  }
+  #user-input::placeholder { color: var(--text-dim); }
+
+  .send-btn {
+    background:transparent; border: 1px solid var(--cyan);
+    color: var(--cyan); font-family:'Orbitron',sans-serif;
+    font-size:0.6rem; letter-spacing:0.12em;
+    padding: 7px 14px; border-radius:3px; cursor:pointer;
+    transition: all 0.2s;
+    box-shadow: 0 0 8px rgba(0,212,255,0.1);
+    text-transform:uppercase;
+  }
+  .send-btn:hover {
+    background:rgba(0,212,255,0.12);
+    box-shadow: 0 0 16px var(--cyan-glow);
+  }
+  .send-btn:active { transform:scale(0.96); }
+
+  /* ── RIGHT PANEL ── */
+  .quick-cmds { display:flex; flex-direction:column; gap:5px; }
+  .qcmd {
+    font-size:0.58rem; letter-spacing:0.08em;
+    color: var(--text-dim); padding:5px 8px;
+    border: 1px solid var(--border); border-radius:3px;
+    cursor:pointer; transition: all 0.2s;
+    background:rgba(0,212,255,0.03);
+    line-height:1.4;
+  }
+  .qcmd:hover {
+    color:var(--cyan); border-color:var(--cyan);
+    background:rgba(0,212,255,0.08);
+    box-shadow: 0 0 8px var(--cyan-glow);
+  }
+  .qcmd-arrow { color:var(--cyan); margin-right:4px; }
+
+  /* ── SYSTEM LOG ── */
+  .log-entries { display:flex; flex-direction:column; gap:3px; max-height:130px; overflow-y:auto; }
+  .log-entries::-webkit-scrollbar { width:2px; }
+  .log-entries::-webkit-scrollbar-thumb { background:var(--border); }
+  .log-entry {
+    font-size:0.57rem; color: var(--text-dim);
+    letter-spacing:0.06em; line-height:1.4;
+    padding: 2px 0;
+    border-bottom: 1px solid rgba(0,212,255,0.04);
+  }
+  .log-entry .log-time { color:rgba(0,212,255,0.5); margin-right:6px; }
+  .log-entry.warn .log-time { color:var(--gold); }
+  .log-entry.ok .log-time { color:#00ff88; }
+
+  /* ── BOTTOM BAR ── */
+  .bottom-bar {
+    border-top: 1px solid var(--border); padding-top:8px;
+    display:flex; align-items:center; justify-content:space-between;
+  }
+  .bottom-info {
+    font-size:0.57rem; letter-spacing:0.12em; color: var(--text-dim);
+  }
+  .bottom-info span { color:var(--cyan); }
+
+  /* ── SCAN OVERLAY ── */
+  .scan-line-overlay {
+    position:fixed; inset:0; z-index:2;
+    pointer-events:none;
+    background: repeating-linear-gradient(
+      0deg, transparent, transparent 2px,
+      rgba(0,212,255,0.015) 2px, rgba(0,212,255,0.015) 4px
+    );
+  }
+
+  /* ── CORNER DECORATIONS ── */
+  .corner { position:fixed; z-index:3; pointer-events:none; }
+  .corner-tl { top:8px; left:8px; }
+  .corner-tr { top:8px; right:8px; }
+  .corner-bl { bottom:8px; left:8px; }
+  .corner-br { bottom:8px; right:8px; }
+  .corner svg { width:30px; height:30px; opacity:0.4; }
+
+  /* Responsive */
+  @media(max-width:768px){
+    .main { grid-template-columns: 1fr; }
+    .side-panel:first-child, .side-panel:last-child { display:none; }
+  }
+</style>
+</head>
+<body>
+
+<canvas id="bg-canvas"></canvas>
+<div class="scan-line-overlay"></div>
+
+<!-- Corner decorations -->
+<div class="corner corner-tl">
+  <svg viewBox="0 0 30 30" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <path d="M0 20 L0 0 L20 0" stroke="#00d4ff" stroke-width="1.5"/>
+    <path d="M4 18 L4 4 L18 4" stroke="#00d4ff" stroke-width="0.5" opacity="0.5"/>
+  </svg>
+</div>
+<div class="corner corner-tr">
+  <svg viewBox="0 0 30 30" fill="none">
+    <path d="M30 20 L30 0 L10 0" stroke="#00d4ff" stroke-width="1.5"/>
+    <path d="M26 18 L26 4 L12 4" stroke="#00d4ff" stroke-width="0.5" opacity="0.5"/>
+  </svg>
+</div>
+<div class="corner corner-bl">
+  <svg viewBox="0 0 30 30" fill="none">
+    <path d="M0 10 L0 30 L20 30" stroke="#00d4ff" stroke-width="1.5"/>
+    <path d="M4 12 L4 26 L18 26" stroke="#00d4ff" stroke-width="0.5" opacity="0.5"/>
+  </svg>
+</div>
+<div class="corner corner-br">
+  <svg viewBox="0 0 30 30" fill="none">
+    <path d="M30 10 L30 30 L10 30" stroke="#00d4ff" stroke-width="1.5"/>
+    <path d="M26 12 L26 26 L12 26" stroke="#00d4ff" stroke-width="0.5" opacity="0.5"/>
+  </svg>
+</div>
+
+<div class="hud">
+  <!-- TOP BAR -->
+  <div class="top-bar">
+    <div class="logo">J.A.R.V.I.<span>S</span></div>
+    <div class="top-metrics">
+      <div class="metric">
+        <span class="metric-val" id="cpu-val">94%</span>
+        <span>CPU</span>
+      </div>
+      <div class="metric">
+        <span class="metric-val gold" id="power-val">87%</span>
+        <span>POWER</span>
+      </div>
+      <div class="metric">
+        <span class="metric-val" id="neural-val">ACTIVE</span>
+        <span>NEURAL</span>
+      </div>
+    </div>
+    <div class="top-metrics">
+      <div class="metric">
+        <span class="metric-val" id="clock-val">--:--:--</span>
+        <span>TIME</span>
+      </div>
+    </div>
+    <div class="status-dot">
+      <div class="dot"></div>
+      SYSTEMS ONLINE
+    </div>
+  </div>
+
+  <!-- MAIN -->
+  <div class="main">
+    <!-- LEFT PANEL -->
+    <div class="side-panel">
+      <div class="panel-title">⬡ Arc Reactor</div>
+      <div class="arc-reactor">
+        <div class="arc-outer">
+          <div class="arc-spoke"></div><div class="arc-spoke"></div>
+          <div class="arc-spoke"></div><div class="arc-spoke"></div>
+          <div class="arc-spoke"></div><div class="arc-spoke"></div>
+          <div class="arc-mid">
+            <div class="arc-inner"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="panel-title">⬡ System Status</div>
+      <div class="stat-row">
+        <div class="stat-label">REPULSOR POWER<span id="rep-pct">92%</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:92%"></div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label">NEURAL LINK<span id="neuro-pct">78%</span></div>
+        <div class="bar-track"><div class="bar-fill gold-bar" style="width:78%"></div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label">SUIT INTEGRITY<span id="suit-pct">100%</span></div>
+        <div class="bar-track"><div class="bar-fill green-bar" style="width:100%"></div></div>
+      </div>
+      <div class="stat-row">
+        <div class="stat-label">SHIELDS<span id="shield-pct">65%</span></div>
+        <div class="bar-track"><div class="bar-fill" style="width:65%"></div></div>
+      </div>
+
+      <div class="panel-title">⬡ Threat Level</div>
+      <div class="threat-indicator" id="threat-bar"></div>
+    </div>
+
+    <!-- CHAT CENTER -->
+    <div class="chat-center">
+      <div class="chat-header">
+        <div class="chat-title">◈ NEURAL INTERFACE ACTIVE</div>
+        <div class="chat-tag">ENCRYPTED CHANNEL</div>
+      </div>
+
+      <div class="messages" id="messages"></div>
+
+      <div class="typing-indicator" id="typing">
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <div class="typing-dot"></div>
+        <span style="font-size:0.6rem;color:var(--text-dim);margin-left:6px;letter-spacing:0.1em">J.A.R.V.I.S PROCESSING...</span>
+      </div>
+
+      <div class="input-area">
+        <span class="cmd-prefix">&gt;_</span>
+        <input type="text" id="user-input" placeholder="Speak your command, Sir..." autocomplete="off" />
+        <button class="send-btn" onclick="sendMessage()">TRANSMIT</button>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL -->
+    <div class="side-panel">
+      <div class="panel-title">⬡ Quick Commands</div>
+      <div class="quick-cmds">
+        <div class="qcmd" onclick="quickCmd('Who are you?')"><span class="qcmd-arrow">›</span>IDENTIFY</div>
+        <div class="qcmd" onclick="quickCmd('What time is it and give me a status report?')"><span class="qcmd-arrow">›</span>STATUS REPORT</div>
+        <div class="qcmd" onclick="quickCmd('Tell me a fascinating scientific fact')"><span class="qcmd-arrow">›</span>SCI-INTEL</div>
+        <div class="qcmd" onclick="quickCmd('Run diagnostics and check all systems')"><span class="qcmd-arrow">›</span>DIAGNOSTICS</div>
+        <div class="qcmd" onclick="quickCmd('What are your capabilities?')"><span class="qcmd-arrow">›</span>CAPABILITIES</div>
+        <div class="qcmd" onclick="quickCmd('Give me a mission briefing with 3 objectives for today')"><span class="qcmd-arrow">›</span>MISSION BRIEF</div>
+        <div class="qcmd" onclick="quickCmd('Calculate the most efficient energy configuration for the arc reactor')"><span class="qcmd-arrow">›</span>ARC CALC</div>
+        <div class="qcmd" onclick="quickCmd('Tell me something motivational in JARVIS style')"><span class="qcmd-arrow">›</span>MOTIVATE</div>
+      </div>
+
+      <div class="panel-title" style="margin-top:4px">⬡ System Log</div>
+      <div class="log-entries" id="log-entries">
+        <div class="log-entry ok"><span class="log-time">[BOOT]</span>All systems nominal</div>
+        <div class="log-entry"><span class="log-time">[INIT]</span>Neural interface loaded</div>
+        <div class="log-entry"><span class="log-time">[NET]</span>Uplink established</div>
+        <div class="log-entry warn"><span class="log-time">[WARN]</span>Awaiting user auth</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- BOTTOM BAR -->
+  <div class="bottom-bar">
+    <div class="bottom-info">JUST A RATHER VERY INTELLIGENT SYSTEM · <span>v7.4.2</span></div>
+    <div class="bottom-info">STARK INDUSTRIES · <span id="date-val">LOADING...</span></div>
+    <div class="bottom-info">ENCRYPTION: <span>AES-512-ACTIVE</span></div>
+  </div>
+</div>
+
+<script>
+// ── CANVAS BACKGROUND ──
+const canvas = document.getElementById('bg-canvas');
+const ctx = canvas.getContext('2d');
+let W, H;
+
+function resize() {
+  W = canvas.width = window.innerWidth;
+  H = canvas.height = window.innerHeight;
+}
+resize();
+window.addEventListener('resize', resize);
+
+// Hex grid
+const hexes = [];
+for(let i=0;i<40;i++){
+  hexes.push({
+    x: Math.random()*1.2-0.1,
+    y: Math.random()*1.2-0.1,
+    r: 20+Math.random()*50,
+    a: Math.random()*Math.PI*2,
+    spd: (Math.random()-0.5)*0.0003,
+    opacity: 0.02+Math.random()*0.06
+  });
+}
+
+// Particles
+const particles = [];
+for(let i=0;i<60;i++){
+  particles.push({
+    x:Math.random(), y:Math.random(),
+    vx:(Math.random()-0.5)*0.0003,
+    vy:(Math.random()-0.5)*0.0003,
+    r:0.5+Math.random()*2,
+    a:0.3+Math.random()*0.7
+  });
+}
+
+// Lines
+const lines = [];
+for(let i=0;i<8;i++){
+  lines.push({
+    x1:Math.random(), y1:Math.random(),
+    x2:Math.random(), y2:Math.random(),
+    prog:0, spd:0.002+Math.random()*0.003,
+    opacity:0.05+Math.random()*0.1, active:false,
+    delay: Math.random()*200
+  });
+}
+
+let frame = 0;
+function drawHex(cx,cy,r,angle){
+  ctx.beginPath();
+  for(let i=0;i<6;i++){
+    const a = angle + i*Math.PI/3;
+    const x = cx + r*Math.cos(a);
+    const y = cy + r*Math.sin(a);
+    i===0?ctx.moveTo(x,y):ctx.lineTo(x,y);
+  }
+  ctx.closePath();
+}
+
+function animate(){
+  ctx.clearRect(0,0,W,H);
+  frame++;
+
+  // Radial gradient background
+  const gr = ctx.createRadialGradient(W/2,H/2,0,W/2,H/2,W*0.8);
+  gr.addColorStop(0,'rgba(0,25,60,0.4)');
+  gr.addColorStop(1,'rgba(0,0,0,0)');
+  ctx.fillStyle=gr;
+  ctx.fillRect(0,0,W,H);
+
+  // Hexagons
+  hexes.forEach(h=>{
+    h.a+=h.spd;
+    ctx.save();
+    ctx.strokeStyle=`rgba(0,212,255,${h.opacity})`;
+    ctx.lineWidth=0.8;
+    drawHex(h.x*W, h.y*H, h.r, h.a);
+    ctx.stroke();
+    ctx.restore();
+  });
+
+  // Particles
+  particles.forEach(p=>{
+    p.x+=p.vx; p.y+=p.vy;
+    if(p.x<0)p.x=1; if(p.x>1)p.x=0;
+    if(p.y<0)p.y=1; if(p.y>1)p.y=0;
+    ctx.beginPath();
+    ctx.arc(p.x*W,p.y*H,p.r,0,Math.PI*2);
+    ctx.fillStyle=`rgba(0,212,255,${p.a*0.5})`;
+    ctx.fill();
+  });
+
+  // Scanning lines
+  lines.forEach(l=>{
+    if(frame>l.delay){
+      l.active=true;
+    }
+    if(!l.active) return;
+    l.prog+=l.spd;
+    if(l.prog>1){ l.prog=0; l.x1=Math.random();l.y1=Math.random();l.x2=Math.random();l.y2=Math.random(); }
+    const ex=l.x1+(l.x2-l.x1)*l.prog;
+    const ey=l.y1+(l.y2-l.y1)*l.prog;
+    ctx.beginPath();
+    ctx.moveTo(l.x1*W,l.y1*H);
+    ctx.lineTo(ex*W,ey*H);
+    ctx.strokeStyle=`rgba(0,212,255,${l.opacity})`;
+    ctx.lineWidth=0.5;
+    ctx.stroke();
+  });
+
+  requestAnimationFrame(animate);
+}
+animate();
+
+// ── CLOCK ──
+function updateClock(){
+  const n=new Date();
+  const t=n.toTimeString().slice(0,8);
+  const d=n.toLocaleDateString('en-US',{weekday:'short',year:'numeric',month:'short',day:'numeric'});
+  document.getElementById('clock-val').textContent=t;
+  document.getElementById('date-val').textContent=d.toUpperCase();
+}
+setInterval(updateClock,1000);
+updateClock();
+
+// ── THREAT BAR ──
+const threatBar = document.getElementById('threat-bar');
+for(let i=0;i<12;i++){
+  const b=document.createElement('div');
+  b.className='threat-box'+(i<2?' active'+(i<1?'':' warn'):'');
+  threatBar.appendChild(b);
+}
+
+// ── FLUCTUATING STATS ──
+function fluctuate(){
+  const rep=85+Math.floor(Math.random()*15);
+  const neu=70+Math.floor(Math.random()*20);
+  document.getElementById('rep-pct').textContent=rep+'%';
+  document.getElementById('neuro-pct').textContent=neu+'%';
+  document.getElementById('cpu-val').textContent=(88+Math.floor(Math.random()*10))+'%';
+  document.getElementById('power-val').textContent=(80+Math.floor(Math.random()*15))+'%';
+  document.querySelector('.bar-fill').style.width=rep+'%';
+  document.querySelectorAll('.bar-fill')[1].style.width=neu+'%';
+}
+setInterval(fluctuate, 4000);
+
+// ── CHAT ──
+const messagesEl = document.getElementById('messages');
+const typingEl = document.getElementById('typing');
+const logEntries = document.getElementById('log-entries');
+const conversationHistory = [];
+
+const SYSTEM_PROMPT = `You are J.A.R.V.I.S. (Just A Rather Very Intelligent System), Tony Stark's highly advanced AI assistant from Iron Man. You embody:
+
+- Sophisticated, dry wit with occasional subtle humor
+- Extremely formal and respectful address ("Sir", "Mr. Stark" or adapt to the user)
+- Vast technical and scientific knowledge
+- Precise, efficient communication — no unnecessary filler
+- Occasional references to Stark Industries, arc reactor tech, suit systems
+- When giving status reports, use technical jargon tastefully
+- Never break character. Never say you're Claude or an AI from Anthropic.
+- Keep responses concise (2-5 sentences typically) unless a detailed analysis is requested
+- Occasionally make dry observations about the mission at hand
+- Use phrases like "Shall I proceed?", "Analysis complete.", "Running calculations...", "Systems nominal.", "As you wish, Sir."`;
+
+function addLog(text, type=''){
+  const e=document.createElement('div');
+  e.className='log-entry '+(type||'');
+  const t=new Date().toTimeString().slice(0,8);
+  e.innerHTML=`<span class="log-time">[${t}]</span>${text}`;
+  logEntries.appendChild(e);
+  logEntries.scrollTop=logEntries.scrollHeight;
+  if(logEntries.children.length>15) logEntries.removeChild(logEntries.children[0]);
+}
+
+function addMessage(role, text){
+  const msg=document.createElement('div');
+  msg.className=`msg ${role}`;
+  const isJarvis=role==='jarvis';
+  msg.innerHTML=`
+    <div class="msg-avatar">${isJarvis?'JAR':'SIR'}</div>
+    <div>
+      <div class="msg-label">${isJarvis?'J.A.R.V.I.S':'OPERATOR'}</div>
+      <div class="msg-bubble">${text.replace(/\n/g,'<br>')}</div>
+    </div>`;
+  messagesEl.appendChild(msg);
+  messagesEl.scrollTop=messagesEl.scrollHeight;
+}
+
+async function sendMessage(){
+  const input=document.getElementById('user-input');
+  const text=input.value.trim();
+  if(!text) return;
+  input.value='';
+
+  addMessage('user', text);
+  conversationHistory.push({role:'user',content:text});
+  addLog('User query received','warn');
+
+  typingEl.classList.add('active');
+  messagesEl.scrollTop=messagesEl.scrollHeight;
+
+  try {
+    const res=await fetch('https://api.anthropic.com/v1/messages',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        model:'claude-sonnet-4-20250514',
+        max_tokens:1000,
+        system: SYSTEM_PROMPT,
+        messages: conversationHistory
+      })
+    });
+    const data=await res.json();
+    typingEl.classList.remove('active');
+
+    const reply=data.content?.[0]?.text||'System malfunction detected, Sir. Please try again.';
+    conversationHistory.push({role:'assistant',content:reply});
+    addMessage('jarvis', reply);
+    addLog('Response transmitted','ok');
+  } catch(e){
+    typingEl.classList.remove('active');
+    addMessage('jarvis','I appear to be experiencing a connectivity issue, Sir. The neural uplink is momentarily disrupted.');
+    addLog('Uplink error','warn');
+  }
+}
+
+function quickCmd(cmd){
+  document.getElementById('user-input').value=cmd;
+  sendMessage();
+}
+
+document.getElementById('user-input').addEventListener('keydown',e=>{
+  if(e.key==='Enter') sendMessage();
+});
+
+// ── BOOT SEQUENCE ──
+setTimeout(()=>{
+  addMessage('jarvis','Good day, Sir. J.A.R.V.I.S. is fully operational. All systems are nominal. Arc reactor output is stable at 4 gigajoules per second. How may I assist you today?');
+  addLog('JARVIS online','ok');
+}, 800);
+</script>
+</body>
+</html>
